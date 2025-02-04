@@ -1,1 +1,6 @@
-
+notebook
+numpy
+opencv-python
+Pillow
+matplotlib
+seaborn
