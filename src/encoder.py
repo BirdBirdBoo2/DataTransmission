@@ -1,13 +1,13 @@
 import numpy as np
 from pathlib import Path
 from scipy.io import wavfile as wav
-from src.psk_modulation import QPSK_Modulation, Modulation, BPSK_Modulation
+from src.psk_modulation import QPSK_Modulation, Modulation, BPSK_Modulation, PSK_Modulation
 
 DEFAULT_SAMPLE_RATE = 44100
 
 
 class Encoder:
-    def __init__(self, n_subcarriers: int = 64, cyclic_prefix_length: int = 16, modulation: str = 'qpsk'):
+    def __init__(self, n_subcarriers: int = 64, cyclic_prefix_length: int = 16, modulation: str = 'qpsk', M: int = 4):
         self.n_subcarriers = n_subcarriers  # Number of subcarriers
         self.cyclic_prefix_length = cyclic_prefix_length  # Cyclic prefix length
 
@@ -16,12 +16,12 @@ class Encoder:
             self.modulation = QPSK_Modulation()
         elif modulation == 'bpsk':
             self.modulation = BPSK_Modulation()
+        elif modulation == 'mpsk':
+            self.modulation = PSK_Modulation(M)
         else:
             raise ValueError(f"Invalid modulation type: {modulation}")
 
-    def read_file(self, file_path):
-        with open(file_path, 'rb') as f:
-            data = f.read()
+    def read_bytes(self, data: bytearray):
         return np.unpackbits(np.frombuffer(data, dtype=np.uint8))
 
     def ofdm_modulate(self, symbols: np.ndarray[np.complex128]):
@@ -55,9 +55,9 @@ class Encoder:
         signal = np.int16(signal / np.max(np.abs(signal)) * 32767)  # Normalize to int16 (required by the WAV format)
         wav.write(output_file, sample_rate, signal)
 
-    def encode(self, file_path, output_file: Path, sample_rate=DEFAULT_SAMPLE_RATE):
-        bits = self.read_file(file_path)
+    def encode(self, data: bytearray, output_file: Path, sample_rate=DEFAULT_SAMPLE_RATE):
+        bits = self.read_bytes(data)
         symbols = self.modulation.modulate(bits)
         signal = self.ofdm_modulate(symbols)
         self.save_waveform(signal, sample_rate=sample_rate, output_file=output_file)
-        print(f"Encoded {file_path} into {output_file}")
+        print(f"Encoded data into {output_file}")
