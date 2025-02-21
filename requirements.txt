@@ -5,3 +5,6 @@ Pillow
 matplotlib
 seaborn
 scipy
+librosa
+pytest
+structlog

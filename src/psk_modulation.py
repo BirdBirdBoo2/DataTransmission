@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
-from ctypes import cast
+from typing import cast
+from .bitmagic import _to_bits, _from_bits
 
 import numpy as np
 
@@ -15,23 +16,6 @@ def _chunk_array(array: np.ndarray, chunk_size: int) -> tuple[np.ndarray, int]:
     array = np.concatenate([array, np.zeros(pad_length, dtype=array.dtype)])
     return array.reshape(-1, chunk_size), pad_length
 
-
-def _to_bits(num: int, n_bits: int) -> np.ndarray[np.uint8]:
-    """
-    Convert a number to a bit array.
-    """
-    num_as_bytes = int(num).to_bytes(2, byteorder='little')
-    num_as_bytes = np.frombuffer(num_as_bytes, dtype=np.uint8)
-    num_as_bits = np.unpackbits(num_as_bytes, bitorder='little')
-    return num_as_bits[:n_bits]
-
-
-def _from_bits(bits: np.ndarray[np.uint8]) -> int:
-    """
-    Convert a bit array to a number.
-    """
-    bits = np.packbits(bits, bitorder='little')
-    return int.from_bytes(bits.tobytes(), byteorder='little')
 
 
 def _make_headers(n_chunks: int, prefix_length_bits: int, max_chunk_size_bits: int,
