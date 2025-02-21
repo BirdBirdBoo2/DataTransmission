@@ -41,7 +41,7 @@ class Encoder:
         num_ofdm_frames = ofdm_frames.shape[0]
 
         # Create OFDM symbol (using Hermitian symmetry for real signal)
-        superresolution = 4
+        superresolution = 8
         ofdm_symbols = np.zeros((num_ofdm_frames, 2 * superresolution * num_sub + 1), dtype=np.complex128)
         ofdm_symbols[:, 1:num_sub + 1] = ofdm_frames
         ofdm_symbols[:, -num_sub:] = np.conj(np.flip(ofdm_frames, axis=1))
@@ -60,23 +60,32 @@ class Encoder:
             ofdm_recovered = np.fft.fft(time_domain_symbols, axis=1)
             np.testing.assert_almost_equal(ofdm_recovered, ofdm_symbols, decimal=3)
 
+        time_domain_symbols = np.real(time_domain_symbols)
+
         # Add cyclic prefix
         cp = time_domain_symbols[:, -cyclic_prefix_length * superresolution:]
         # cp = np.zeros_like(cp)
         time_domain_signal = np.hstack([cp, time_domain_symbols]).flatten()
+
+        carrier_signal_t = np.arange(0, time_domain_signal.shape[0])
+        carrier_signal = np.sin(2 * np.pi * carrier_signal_t / superresolution) * 4
 
         if DO_PLOTS:
             plt.figure(figsize=(25, 5))
             plt.axvline(cyclic_prefix_length * superresolution, color='r', linestyle='--')
             plt.axvline((2 * num_sub + 1 + cyclic_prefix_length) * superresolution, color='r', linestyle='--')
             plt.plot(np.real(time_domain_signal), label='real')
+
+            plt.plot(carrier_signal / 4, linestyle='--', label='carrier')
+
+            plt.plot(time_domain_signal * carrier_signal, label='carrier')
+
+            plt.legend()
             plt.tight_layout()
             plt.show()
 
-        carrier_signal_t = np.arange(0, time_domain_signal.shape[0])
-        carrier_signal = np.sin(2 * np.pi * carrier_signal_t / 32) * 4
-
-        return time_domain_signal * carrier_signal
+        return time_domain_signal
+        # return time_domain_signal * carrier_signal
 
     def save_waveform(self, signal, output_file: Path, sample_rate=DEFAULT_SAMPLE_RATE):
         signal = np.real(signal)
