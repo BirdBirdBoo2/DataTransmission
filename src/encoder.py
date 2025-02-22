@@ -13,9 +13,16 @@ logger = structlog.stdlib.get_logger(__name__)
 
 
 class Encoder:
-    def __init__(self, n_subcarriers: int = 64, cyclic_prefix_length: int = 16, modulation: str = 'qpsk', M: int = 4):
+    def __init__(self, n_subcarriers: int = 64,
+                 cyclic_prefix_length: int = 16,
+                 modulation: str = 'qpsk',
+                 M: int = 4,
+                 grace_period_s: float = 0.05,
+                 DEBUG_use_carrier: bool = True):
         self.n_subcarriers = n_subcarriers  # Number of subcarriers
         self.cyclic_prefix_length = cyclic_prefix_length  # Cyclic prefix length
+        self.grace_period_s = grace_period_s
+        self.DEBUG_use_carrier = DEBUG_use_carrier
 
         self.modulation: Modulation
         if modulation == 'qpsk':
@@ -41,7 +48,7 @@ class Encoder:
         num_ofdm_frames = ofdm_frames.shape[0]
 
         # Create OFDM symbol (using Hermitian symmetry for real signal)
-        superresolution = 8
+        superresolution = 16
         ofdm_symbols = np.zeros((num_ofdm_frames, 2 * superresolution * num_sub + 1), dtype=np.complex128)
         ofdm_symbols[:, 1:num_sub + 1] = ofdm_frames
         ofdm_symbols[:, -num_sub:] = np.conj(np.flip(ofdm_frames, axis=1))
@@ -62,10 +69,17 @@ class Encoder:
 
         time_domain_symbols = np.real(time_domain_symbols)
 
-        # Add cyclic prefix
-        cp = time_domain_symbols[:, -cyclic_prefix_length * superresolution:]
-        # cp = np.zeros_like(cp)
-        time_domain_signal = np.hstack([cp, time_domain_symbols]).flatten()
+        if cyclic_prefix_length > 0:
+            # Add cyclic prefix
+            cp = time_domain_symbols[:, -cyclic_prefix_length * superresolution:]
+            time_domain_symbols = np.hstack([cp, time_domain_symbols])
+
+        if self.grace_period_s > 0:
+            len_grace = int(self.grace_period_s * DEFAULT_SAMPLE_RATE)
+            grace = np.zeros((time_domain_symbols.shape[0], len_grace))
+            time_domain_symbols = np.hstack([time_domain_symbols, grace])
+
+        time_domain_signal = time_domain_symbols.flatten()
 
         carrier_signal_t = np.arange(0, time_domain_signal.shape[0])
         carrier_signal = np.sin(2 * np.pi * carrier_signal_t / superresolution) * 4
@@ -84,8 +98,7 @@ class Encoder:
             plt.tight_layout()
             plt.show()
 
-        return time_domain_signal
-        # return time_domain_signal * carrier_signal
+        return time_domain_signal * carrier_signal if self.DEBUG_use_carrier else time_domain_signal
 
     def save_waveform(self, signal, output_file: Path, sample_rate=DEFAULT_SAMPLE_RATE):
         signal = np.real(signal)
