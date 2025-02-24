@@ -17,7 +17,7 @@ class Encoder:
                  cyclic_prefix_length: int = 16,
                  modulation: str = 'qpsk',
                  M: int = 4,
-                 grace_period_s: float = 0.01,
+                 grace_period_s: float = 0.0,
                  ofdm_frequency_hz: float = 512,
                  carrier_frequency_hz: float = 2048,
                  DEBUG_use_carrier: bool = True):
@@ -113,8 +113,7 @@ class Encoder:
 
         time_domain_signal = time_domain_symbols.flatten()
 
-        carrier_signal_t = np.arange(0, len(time_domain_signal))
-        carrier_signal = np.sin(2 * np.pi * carrier_signal_t * self.carrier_frequency_hz / self.sample_rate)
+        carrier_signal = self._make_carrier_waveform(time_domain_signal)
         logger.info(f"Carrier signal created", carrier_frequency=self.carrier_frequency_hz)
         logger.info("OFDM frames computed", ofdm_frame_len=ofdm_frame_len)
 
@@ -131,6 +130,11 @@ class Encoder:
             plt.show()
 
         return time_domain_signal * carrier_signal if self.DEBUG_use_carrier else time_domain_signal
+
+    def _make_carrier_waveform(self, time_domain_signal):
+        carrier_signal_t = np.arange(0, len(time_domain_signal))
+        carrier_signal = np.sin(2 * np.pi * carrier_signal_t * self.carrier_frequency_hz / self.sample_rate)
+        return carrier_signal
 
     def save_waveform(self, signal, output_file: Path):
         signal = np.real(signal)
