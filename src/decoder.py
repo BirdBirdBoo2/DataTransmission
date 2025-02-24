@@ -30,7 +30,7 @@ class Decoder:
 
         self.modulation: Modulation
         if modulation == 'qpsk':
-            self.modulation = QPSK_Modulation()
+            self.modulation = QPSK_Modulation(n_subcarriers)
         elif modulation == 'bpsk':
             self.modulation = BPSK_Modulation(n_subcarriers)
         elif modulation == 'mpsk':

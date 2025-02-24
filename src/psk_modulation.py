@@ -131,6 +131,8 @@ class QPSK_Modulation(Modulation):
         self.max_data_chunk_size_bits = (self.n_subcarriers * bits_per_symbol - self.prefix_length_bits)
         self.logger = structlog.getLogger(QPSK_Modulation.__name__)
 
+    def _closest_qpsk_symbol(self, symbol):
+        return min(self.qpsk_reverse_mapping.keys(), key=lambda s: np.abs(s - symbol))
 
     def modulate(self, bits):
         chunk_size = self.max_data_chunk_size_bits
@@ -148,7 +150,9 @@ class QPSK_Modulation(Modulation):
 
     def demodulate(self, symbols: np.ndarray[np.complex128]) -> np.ndarray[np.uint8]:
         symbols = np.real_if_close(symbols)
-        recovered_data_pairs = np.array([self.qpsk_reverse_mapping[s] for s in symbols], dtype=np.uint8)
+
+        normalized_symbols = np.array([self._closest_qpsk_symbol(s) for s in symbols])
+        recovered_data_pairs = np.array([self.qpsk_reverse_mapping[s] for s in normalized_symbols], dtype=np.uint8)
         recovered_data_bits = recovered_data_pairs.flatten()
         
         self.logger.info(f'Recovered 32 first bits', message_bits=recovered_data_bits[:32])
