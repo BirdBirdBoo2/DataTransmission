@@ -44,7 +44,10 @@ class Encoder:
         return np.unpackbits(np.frombuffer(data, dtype=np.uint8))
 
     def _make_symbol(self, ofdm_frame: np.ndarray) -> np.ndarray:
+        assert self.ofdm_frequency_hz % self.n_subcarriers == 0, "OFDM frequency must be a multiple of the number of subcarriers"
+
         base_frequency = self.ofdm_frequency_hz // self.n_subcarriers
+
         min_symbol_duration_s = 1 / base_frequency
 
         symbol = np.zeros(self.sample_rate, dtype=np.complex128)
@@ -110,7 +113,7 @@ class Encoder:
 
         time_domain_signal = time_domain_symbols.flatten()
 
-        carrier_signal_t = np.arange(0, len(time_domain_signal) )
+        carrier_signal_t = np.arange(0, len(time_domain_signal))
         carrier_signal = np.sin(2 * np.pi * carrier_signal_t * self.carrier_frequency_hz / self.sample_rate)
         logger.info(f"Carrier signal created", carrier_frequency=self.carrier_frequency_hz)
         logger.info("OFDM frames computed", ofdm_frame_len=ofdm_frame_len)

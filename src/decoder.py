@@ -39,8 +39,9 @@ class Decoder:
             raise ValueError(f"Invalid modulation type: {modulation}")
 
     def _estimate_symbols(self, wave_signal: np.ndarray) -> np.ndarray:
-        # TODO: improve
-        estimated_num_pts_per_symbol = self.ofdm_frequency_hz * 2
+        base_frequency = self.ofdm_frequency_hz / self.n_subcarriers
+        symbol_time = 1 / base_frequency
+        estimated_num_pts_per_symbol = int(self.sample_rate * symbol_time)
         logger.info("Estimate symbols", num_pts_per_symbol=estimated_num_pts_per_symbol)
         return wave_signal.reshape((-1, estimated_num_pts_per_symbol))
 
