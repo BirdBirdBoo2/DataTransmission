@@ -6,19 +6,20 @@ import structlog
 from scipy.io import wavfile as wav
 from .psk_modulation import QPSK_Modulation, Modulation, BPSK_Modulation, PSK_Modulation
 
-DO_PLOTS = True
+DO_PLOTS = False
 
 logger = structlog.stdlib.get_logger(__name__)
 
 
 class Encoder:
-    def __init__(self, n_subcarriers: int = 64,
+    def __init__(self,
+                 n_subcarriers: int = 64,
                  cyclic_prefix_length: int = 16,
                  modulation: str = 'qpsk',
                  M: int = 4,
                  grace_period_s: float = 0.01,
-                 ofdm_frequency_hz: float = 1000,
-                 carrier_frequency_hz: float = 22050,
+                 ofdm_frequency_hz: float = 512,
+                 carrier_frequency_hz: float = 2048,
                  DEBUG_use_carrier: bool = True):
         self.ofdm_frequency_hz = ofdm_frequency_hz
         self.carrier_frequency_hz = carrier_frequency_hz
@@ -111,7 +112,8 @@ class Encoder:
 
         carrier_signal_t = np.arange(0, len(time_domain_signal) )
         carrier_signal = np.sin(2 * np.pi * carrier_signal_t * self.carrier_frequency_hz / self.sample_rate)
-        logger.info(f'Carrier signal frequency: {self.carrier_frequency_hz} Hz, OFDM frame len: {ofdm_frame_len}')
+        logger.info(f"Carrier signal created", carrier_frequency=self.carrier_frequency_hz)
+        logger.info("OFDM frames computed", ofdm_frame_len=ofdm_frame_len)
 
         if DO_PLOTS:
             plt.figure(figsize=(25, 5))
