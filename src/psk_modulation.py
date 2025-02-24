@@ -114,7 +114,7 @@ class QPSK_Modulation(Modulation):
     This class implements the modulation of bits into Quadratic Shift Keying symbols.
     """
 
-    def __init__(self):
+    def __init__(self, n_subcarriers: int = 64):
         self.qpsk_mapping = {
             (0, 0): 1 + 1j,
             (0, 1): -1 + 1j,
@@ -125,15 +125,43 @@ class QPSK_Modulation(Modulation):
         self.qpsk_direct_mapping = [v for _, v in self.qpsk_mapping.items()]
         self.qpsk_reverse_mapping = {v: k for k, v in self.qpsk_mapping.items()}
 
+        self.n_subcarriers = n_subcarriers
+        bits_per_symbol = 2  # QPSK encodes 2 bits per symbol
+        self.prefix_length_bits = np.ceil(np.log2(n_subcarriers * bits_per_symbol)).astype(int)
+        self.max_data_chunk_size_bits = (self.n_subcarriers * bits_per_symbol - self.prefix_length_bits)
+        self.logger = structlog.getLogger(QPSK_Modulation.__name__)
+
+
     def modulate(self, bits):
-        bit_pairs = bits.reshape(-1, 2)
-        bit_indices = np.packbits(bit_pairs, axis=1, bitorder='little').flatten()
-        symbols = np.array([self.qpsk_direct_mapping[b] for b in bit_indices])
+        chunk_size = self.max_data_chunk_size_bits
+        data_chunks, padding = _chunk_array(bits, chunk_size)
+        n_chunks = data_chunks.shape[0]
+
+        headers = _make_headers(n_chunks, self.prefix_length_bits, self.max_data_chunk_size_bits, padding)
+        message_bits = np.hstack((headers, data_chunks)).flatten()
+        self.logger.info(f'Encoded 32 first bits', message_bits=message_bits[:32])
+
+        bit_pairs = message_bits.reshape(-1, 2)
+        symbols = np.array([self.qpsk_mapping[tuple(b)] for b in bit_pairs])
+
         return symbols.astype(np.complex128)
 
     def demodulate(self, symbols: np.ndarray[np.complex128]) -> np.ndarray[np.uint8]:
-        recovered_data = np.array([self.qpsk_reverse_mapping[s] for s in symbols])
-        return cast(recovered_data.astype(np.uint8), np.ndarray[np.uint8])
+        symbols = np.real_if_close(symbols)
+        recovered_data_pairs = np.array([self.qpsk_reverse_mapping[s] for s in symbols], dtype=np.uint8)
+        recovered_data_bits = recovered_data_pairs.flatten()
+        
+        self.logger.info(f'Recovered 32 first bits', message_bits=recovered_data_bits[:32])
+        recovered_data_chunks = recovered_data_bits.reshape(-1, self.n_subcarriers * 2)
+
+        bits = []
+        for i in range(recovered_data_chunks.shape[0]):
+            chunk = recovered_data_chunks[i]
+            chunk_length_bits = chunk[:self.prefix_length_bits]
+            chunk_length = _from_bits(chunk_length_bits)
+            bits.append(chunk[self.prefix_length_bits:][:chunk_length])
+
+        return np.concatenate(bits)
 
 
 class PSK_Modulation(Modulation):
