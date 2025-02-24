@@ -1,5 +1,8 @@
 from abc import ABC, abstractmethod
 from typing import cast
+
+import structlog
+
 from .bitmagic import _to_bits, _from_bits
 
 import numpy as np
@@ -72,6 +75,8 @@ class BPSK_Modulation(Modulation):
 
         # number of data bits in message chunk
         self.max_data_chunk_size_bits = (self.n_subcarriers * bits_per_symbol - self.prefix_length_bits)
+        self.logger = structlog.getLogger(BPSK_Modulation.__name__)
+
 
     def modulate(self, bits):
         chunk_size = self.max_data_chunk_size_bits
@@ -81,12 +86,16 @@ class BPSK_Modulation(Modulation):
         headers = _make_headers(n_chunks, self.prefix_length_bits, self.max_data_chunk_size_bits, padding)
         message_bits = np.hstack((headers, data_chunks)).flatten()
 
+        self.logger.info(f'Encoded 32 first bits', message_bits=message_bits[:32])
+
         symbols = np.array([self.bpsk_mapping[b] for b in message_bits])
 
         return symbols.astype(np.complex128)
 
     def demodulate(self, symbols: np.ndarray[np.complex128]) -> np.ndarray[np.uint8]:
+        symbols = np.real_if_close(symbols)
         recovered_data_bits = np.array([self.bpsk_reverse_mapping[s] for s in symbols], dtype=np.uint8)
+        self.logger.info(f'Recovered 32 first bits', message_bits=recovered_data_bits[:32])
         recovered_data_chunks = recovered_data_bits.reshape(-1, self.n_subcarriers)
 
         bits = []
