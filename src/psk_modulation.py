@@ -93,7 +93,7 @@ class BPSK_Modulation(Modulation):
         return symbols.astype(np.complex128)
 
     def demodulate(self, symbols: np.ndarray[np.complex128]) -> np.ndarray[np.uint8]:
-        symbols = np.round(symbols, 1)
+        symbols = np.round(symbols, 0)
         symbols = np.real(symbols)
         recovered_data_bits = np.array([self.bpsk_reverse_mapping[s] for s in symbols], dtype=np.uint8)
         self.logger.info(f'Recovered 32 first bits', message_bits=recovered_data_bits[:32])
